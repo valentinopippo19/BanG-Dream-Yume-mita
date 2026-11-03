@@ -15,100 +15,116 @@ echo [1/5] Comprobando Java...
 where java >nul 2>&1
 if errorlevel 1 (
     echo ERROR: Java no esta instalado.
-    echo Instala Java 21 o superior.
     pause
     exit /b 1
 )
 
-java -version
+for /f tokens^=3 delims^=^" %%V in ('java -version 2^>^&1 ^| findstr /i "version"') do set "JAVA_VERSION=%%V"
+
+echo Version detectada: %JAVA_VERSION%
+
+if not defined JAVA_VERSION (
+    echo ERROR: No se pudo detectar la version de Java.
+    pause
+    exit /b 1
+)
+
+for /f "tokens=1 delims=." %%V in ("%JAVA_VERSION%") do set "JAVA_MAJOR=%%V"
+
+if %JAVA_MAJOR% LSS 21 (
+    echo ERROR: Se necesita Java 21 o superior.
+    pause
+    exit /b 1
+)
+
+echo Java correcto.
 echo.
 
 set "TOOLS=%~dp0.tools"
 set "MAVEN_VERSION=3.9.11"
 set "MAVEN_DIR=%TOOLS%\apache-maven-%MAVEN_VERSION%"
-set "MAVEN_ZIP=%TOOLS%\apache-maven-%MAVEN_VERSION%-bin.zip"
 set "MVN_CMD=%MAVEN_DIR%\bin\mvn.cmd"
+set "MAVEN_ZIP=%TOOLS%\maven.zip"
 
 echo [2/5] Comprobando Maven...
 
-where mvn >nul 2>&1
-if not errorlevel 1 (
-    set "MVN_CMD=mvn"
-    goto BUILD
-)
+if not exist "%MVN_CMD%" (
+    if not exist "%TOOLS%" mkdir "%TOOLS%"
 
-if exist "%MVN_CMD%" goto BUILD
+    echo Descargando Maven...
 
-if not exist "%TOOLS%" mkdir "%TOOLS%"
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest 'https://archive.apache.org/dist/maven/maven-3/3.9.11/binaries/apache-maven-3.9.11-bin.zip' -OutFile '%MAVEN_ZIP%'"
 
-echo Descargando Apache Maven %MAVEN_VERSION%...
+    if errorlevel 1 (
+        echo ERROR: Fallo la descarga de Maven.
+        pause
+        exit /b 1
+    )
 
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Invoke-WebRequest -Uri 'https://archive.apache.org/dist/maven/maven-3/3.9.11/binaries/apache-maven-3.9.11-bin.zip' -OutFile '%MAVEN_ZIP%'"
+    echo Extrayendo Maven...
 
-if errorlevel 1 (
-    echo ERROR: No se pudo descargar Maven.
-    pause
-    exit /b 1
-)
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Expand-Archive -LiteralPath '%MAVEN_ZIP%' -DestinationPath '%TOOLS%' -Force"
 
-echo Extrayendo Maven...
-
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ErrorActionPreference='Stop'; Expand-Archive -LiteralPath '%MAVEN_ZIP%' -DestinationPath '%TOOLS%' -Force"
-
-if errorlevel 1 (
-    echo ERROR: No se pudo extraer Maven.
-    pause
-    exit /b 1
+    if errorlevel 1 (
+        echo ERROR: Fallo la extraccion de Maven.
+        pause
+        exit /b 1
+    )
 )
 
 if not exist "%MVN_CMD%" (
-    echo ERROR: No se encontro mvn.cmd.
+    echo ERROR: No se encontro Maven.
     pause
     exit /b 1
 )
 
-:BUILD
-
+echo Maven correcto.
 echo.
+
 echo [3/5] Comprobando proyecto...
 
-if not exist "pom.xml" (
+if not exist "%~dp0pom.xml" (
     echo ERROR: No se encontro pom.xml.
-    echo Coloca este instalador en la carpeta principal del proyecto.
     pause
     exit /b 1
 )
 
-echo [4/5] Compilando WaiVIdol Universe...
+echo Proyecto encontrado.
 echo.
 
-call "%MVN_CMD%" clean package
+echo [4/5] Compilando proyecto...
+echo.
+
+call "%MVN_CMD%" -e clean package > "%~dp0build-error.log" 2>&1
 
 if errorlevel 1 (
+    echo ERROR: La compilacion fallo.
     echo.
-    echo ERROR: Maven no pudo compilar el proyecto.
-    echo Revisa los errores que aparecen arriba.
+    echo Ultimas lineas del registro:
+    powershell -NoProfile -Command "Get-Content '%~dp0build-error.log' -Tail 40"
+    echo.
+    echo Registro completo: build-error.log
     pause
     exit /b 1
 )
 
+echo Compilacion correcta.
 echo.
-echo [5/5] Buscando archivo JAR...
+
+echo [5/5] Buscando JAR...
 
 if not exist "target\waividol-universe-1.0.0.jar" (
     echo ERROR: No se encontro el JAR esperado.
-    echo Archivos disponibles:
-    dir target\*.jar
+    echo JAR disponibles:
+    dir /b target\*.jar 2>nul
     pause
     exit /b 1
 )
 
 echo.
 echo ==========================================
-echo       COMPILACION CORRECTA
+echo       INSTALACION CORRECTA
 echo ==========================================
-echo.
-echo Iniciando WaiVIdol Universe...
 echo.
 
 java -jar "target\waividol-universe-1.0.0.jar"
