@@ -1,0 +1,10 @@
+target/
+.tools/
+*.db
+*.sqlite
+*.sqlite3
+*.log
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
