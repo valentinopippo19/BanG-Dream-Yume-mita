@@ -1,0 +1,15 @@
+com\waividol\Character$Unlock.class
+com\waividol\Json.class
+com\waividol\QuizService$Active.class
+com\waividol\QuizService.class
+com\waividol\QuizQuestion.class
+com\waividol\WalletService.class
+com\waividol\AuthService.class
+com\waividol\Main.class
+com\waividol\JsonCatalog.class
+com\waividol\Database.class
+com\waividol\Http.class
+com\waividol\JsonCatalog$1.class
+com\waividol\ApiServer.class
+com\waividol\JsonCatalog$2.class
+com\waividol\Character.class
